@@ -1,4 +1,6 @@
+import java.util.Scanner;
 public class Main {
+    Scanner in = new Scanner(System.in);
     // Toggle this to false if your console can't display Unicode chess symbols
     static final boolean USE_UNICODE = true;
 
@@ -23,7 +25,7 @@ public class Main {
             }
             // Empty squares
             for (int row = 2; row <= 5; row++) {
-                for (int col = 0; col < 8; col++) board[row][col] = " . ";
+                for (int col = 0; col < 8; col++) board[row][col] = ".   ";
             }
             // White pawns on rank 2 and white pieces on rank 1
             for (int col = 0; col < 8; col++) {
@@ -64,7 +66,7 @@ public class Main {
             System.out.println();
         }
         // file labels
-        System.out.println("   a  b  c  d  e  f  g  h");
+        System.out.println("   a    b    c   d    e   f    g    h");
         System.out.println();
     }
 }
