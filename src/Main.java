@@ -4,7 +4,10 @@ public class Main {
 
     static Scanner in = new Scanner(System.in);
 
-    static final boolean USE_UNICODE = true;
+    static final String EMPTY = "·";
+
+    static final String BLACK_PAWN = "\u2659";
+    static final String WHITE_PAWN = "\u265F";
 
     static final String[] UNICODE_BLACK = {
             "\u2656","\u2658","\u2657","\u2655","\u2654","\u2657","\u2658","\u2656"
@@ -13,9 +16,6 @@ public class Main {
     static final String[] UNICODE_WHITE = {
             "\u265C","\u265E","\u265D","\u265B","\u265A","\u265D","\u265E","\u265C"
     };
-
-    static final String BLACK_PAWN = "\u2659";
-    static final String WHITE_PAWN = "\u265F";
 
     public static void main(String[] args) {
 
@@ -27,17 +27,12 @@ public class Main {
         while (true) {
             printBoard(board);
 
-            if (whiteTurn) {
-                System.out.print("White move (e2 e4): ");
-            } else {
-                System.out.print("Black move (e7 e5): ");
-            }
+            System.out.print(whiteTurn ? "White move: " : "Black move: ");
+            String move = in.nextLine().trim().toLowerCase();
 
-            String move = in.nextLine().trim();
+            if (move.equals("exit")) break;
 
-            if (move.equalsIgnoreCase("exit")) break;
-
-            if (!processMove(board, move, whiteTurn)) {
+            if (!processPawnMove(board, move, whiteTurn)) {
                 System.out.println("Invalid move. Try again.");
                 continue;
             }
@@ -45,6 +40,8 @@ public class Main {
             whiteTurn = !whiteTurn;
         }
     }
+
+    // ================= BOARD SETUP =================
 
     static void initializeBoard(String[][] board) {
 
@@ -55,7 +52,7 @@ public class Main {
 
         for (int row = 2; row <= 5; row++) {
             for (int col = 0; col < 8; col++) {
-                board[row][col] = ".";
+                board[row][col] = EMPTY;
             }
         }
 
@@ -71,87 +68,55 @@ public class Main {
         for (int row = 0; row < 8; row++) {
             System.out.print((8 - row) + " ");
             for (int col = 0; col < 8; col++) {
-                System.out.print(" " + board[row][col] + " ");
+                System.out.printf(" %s ", board[row][col]);
             }
             System.out.println();
         }
         System.out.println("   a  b  c  d  e  f  g  h\n");
     }
 
-    static boolean processMove(String[][] board, String move, boolean whiteTurn) {
+    // ================= PAWN MOVE LOGIC =================
 
-        String[] parts = move.split(" ");
-        if (parts.length != 2) return false;
+    static boolean processPawnMove(String[][] board, String move, boolean whiteTurn) {
 
-        int fromCol = parts[0].charAt(0) - 'a';
-        int fromRow = 8 - (parts[0].charAt(1) - '0');
+        // Expect format like "e4"
+        if (move.length() != 2) return false;
 
-        int toCol = parts[1].charAt(0) - 'a';
-        int toRow = 8 - (parts[1].charAt(1) - '0');
+        int toCol = move.charAt(0) - 'a';
+        int toRow = 8 - (move.charAt(1) - '0');
 
-        if (!inBounds(fromRow, fromCol) || !inBounds(toRow, toCol)) {
-            return false;
-        }
+        if (!inBounds(toRow, toCol)) return false;
+        if (!board[toRow][toCol].equals(EMPTY)) return false;
 
-        String piece = board[fromRow][fromCol];
+        String pawn = whiteTurn ? WHITE_PAWN : BLACK_PAWN;
+        int direction = whiteTurn ? -1 : 1;
+        int startRow = whiteTurn ? 6 : 1;
 
-        if (piece.equals(".")) return false;
+        int foundFromRow = -1;
 
-        // Pawn logic (simple)
-        // Pawn logic (with first double move)
-        if (whiteTurn && piece.equals(WHITE_PAWN)) {
+        for (int row = 0; row < 8; row++) {
+            if (board[row][toCol].equals(pawn)) {
 
-            // One square forward
-            if (fromCol == toCol &&
-                    toRow == fromRow - 1 &&
-                    board[toRow][toCol].equals(".")) {
+                // One-square move
+                if (row + direction == toRow) {
+                    foundFromRow = row;
+                }
 
-                movePiece(board, fromRow, fromCol, toRow, toCol);
-                return true;
-            }
+                // Two-square move from starting rank
+                if (row == startRow &&
+                        row + 2 * direction == toRow &&
+                        board[row + direction][toCol].equals(EMPTY)) {
 
-            // Two squares forward (first move)
-            if (fromCol == toCol &&
-                    fromRow == 6 &&
-                    toRow == 4 &&
-                    board[5][toCol].equals(".") &&
-                    board[4][toCol].equals(".")) {
-
-                movePiece(board, fromRow, fromCol, toRow, toCol);
-                return true;
+                    foundFromRow = row;
+                }
             }
         }
 
-        if (!whiteTurn && piece.equals(BLACK_PAWN)) {
+        if (foundFromRow == -1) return false;
 
-            // One square forward
-            if (fromCol == toCol &&
-                    toRow == fromRow + 1 &&
-                    board[toRow][toCol].equals(".")) {
-
-                movePiece(board, fromRow, fromCol, toRow, toCol);
-                return true;
-            }
-
-            // Two squares forward (first move)
-            if (fromCol == toCol &&
-                    fromRow == 1 &&
-                    toRow == 3 &&
-                    board[2][toCol].equals(".") &&
-                    board[3][toCol].equals(".")) {
-
-                movePiece(board, fromRow, fromCol, toRow, toCol);
-                return true;
-            }
-        }
-
-
-        return false;
-    }
-
-    static void movePiece(String[][] board, int fr, int fc, int tr, int tc) {
-        board[tr][tc] = board[fr][fc];
-        board[fr][fc] = ".";
+        board[toRow][toCol] = pawn;
+        board[foundFromRow][toCol] = EMPTY;
+        return true;
     }
 
     static boolean inBounds(int r, int c) {
