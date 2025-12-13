@@ -1,72 +1,160 @@
 import java.util.Scanner;
+
 public class Main {
-    Scanner in = new Scanner(System.in);
-    // Toggle this to false if your console can't display Unicode chess symbols
+
+    static Scanner in = new Scanner(System.in);
+
     static final boolean USE_UNICODE = true;
 
-    static final String[] UNICODE_WHITE = {"\u2656","\u2658","\u2657","\u2655","\u2654","\u2657","\u2658","\u2656"}; // R N B Q K B N R
-    static final String[] UNICODE_BLACK = {"\u265C","\u265E","\u265D","\u265B","\u265A","\u265D","\u265E","\u265C"}; // r n b q k b n r
-    static final String WHITE_PAWN = "\u2659"; // pawn
-    static final String BLACK_PAWN = "\u265F"; // pawn
+    static final String[] UNICODE_BLACK = {
+            "\u2656","\u2658","\u2657","\u2655","\u2654","\u2657","\u2658","\u2656"
+    };
+
+    static final String[] UNICODE_WHITE = {
+            "\u265C","\u265E","\u265D","\u265B","\u265A","\u265D","\u265E","\u265C"
+    };
+
+    static final String BLACK_PAWN = "\u2659";
+    static final String WHITE_PAWN = "\u265F";
 
     public static void main(String[] args) {
+
         String[][] board = new String[8][8];
         initializeBoard(board);
-        printBoard(board);
-    }
 
-    // Initialize the board with the standard chess starting position
-    static void initializeBoard(String[][] board) {
-        if (USE_UNICODE) {
-            // Black pieces on rank 8 and pawns on rank 7
-            for (int col = 0; col < 8; col++) {
-                board[0][col] = UNICODE_BLACK[col];
-                board[1][col] = BLACK_PAWN;
-            }
-            // Empty squares
-            for (int row = 2; row <= 5; row++) {
-                for (int col = 0; col < 8; col++) board[row][col] = ".   ";
-            }
-            // White pawns on rank 2 and white pieces on rank 1
-            for (int col = 0; col < 8; col++) {
-                board[6][col] = WHITE_PAWN;
-                board[7][col] = UNICODE_WHITE[col];
-            }
-        } else {
+        boolean whiteTurn = true;
 
-            String[] white = {"R","N","B","Q","K","B","N","R"};
-            String[] black = {"r","n","b","q","k","b","n","r"};
-            for (int col = 0; col < 8; col++) {
-                board[0][col] = black[col];
-                board[1][col] = "p";
+        while (true) {
+            printBoard(board);
+
+            if (whiteTurn) {
+                System.out.print("White move (e2 e4): ");
+            } else {
+                System.out.print("Black move (e7 e5): ");
             }
-            for (int row = 2; row <= 5; row++) {
-                for (int col = 0; col < 8; col++) board[row][col] = ".";
+
+            String move = in.nextLine().trim();
+
+            if (move.equalsIgnoreCase("exit")) break;
+
+            if (!processMove(board, move, whiteTurn)) {
+                System.out.println("Invalid move. Try again.");
+                continue;
             }
-            for (int col = 0; col < 8; col++) {
-                board[6][col] = "P";
-                board[7][col] = white[col];
-            }
+
+            whiteTurn = !whiteTurn;
         }
     }
 
-    // Print the board with ranks and files
+    static void initializeBoard(String[][] board) {
+
+        for (int col = 0; col < 8; col++) {
+            board[0][col] = UNICODE_BLACK[col];
+            board[1][col] = BLACK_PAWN;
+        }
+
+        for (int row = 2; row <= 5; row++) {
+            for (int col = 0; col < 8; col++) {
+                board[row][col] = ".";
+            }
+        }
+
+        for (int col = 0; col < 8; col++) {
+            board[6][col] = WHITE_PAWN;
+            board[7][col] = UNICODE_WHITE[col];
+        }
+    }
+
     static void printBoard(String[][] board) {
+
         System.out.println();
         for (int row = 0; row < 8; row++) {
-            int rank = 8 - row;
-            System.out.print(rank + " "); // rank label
+            System.out.print((8 - row) + " ");
             for (int col = 0; col < 8; col++) {
-                String sq = board[row][col];
-                // ensure even-width for nicer alignment
-                if (sq.length() == 1) sq = " " + sq + " ";
-                else if (sq.length() == 2) sq = " " + sq;
-                System.out.print(sq + " ");
+                System.out.print(" " + board[row][col] + " ");
             }
             System.out.println();
         }
-        // file labels
-        System.out.println("   a    b    c   d    e   f    g    h");
-        System.out.println();
+        System.out.println("   a  b  c  d  e  f  g  h\n");
+    }
+
+    static boolean processMove(String[][] board, String move, boolean whiteTurn) {
+
+        String[] parts = move.split(" ");
+        if (parts.length != 2) return false;
+
+        int fromCol = parts[0].charAt(0) - 'a';
+        int fromRow = 8 - (parts[0].charAt(1) - '0');
+
+        int toCol = parts[1].charAt(0) - 'a';
+        int toRow = 8 - (parts[1].charAt(1) - '0');
+
+        if (!inBounds(fromRow, fromCol) || !inBounds(toRow, toCol)) {
+            return false;
+        }
+
+        String piece = board[fromRow][fromCol];
+
+        if (piece.equals(".")) return false;
+
+        // Pawn logic (simple)
+        // Pawn logic (with first double move)
+        if (whiteTurn && piece.equals(WHITE_PAWN)) {
+
+            // One square forward
+            if (fromCol == toCol &&
+                    toRow == fromRow - 1 &&
+                    board[toRow][toCol].equals(".")) {
+
+                movePiece(board, fromRow, fromCol, toRow, toCol);
+                return true;
+            }
+
+            // Two squares forward (first move)
+            if (fromCol == toCol &&
+                    fromRow == 6 &&
+                    toRow == 4 &&
+                    board[5][toCol].equals(".") &&
+                    board[4][toCol].equals(".")) {
+
+                movePiece(board, fromRow, fromCol, toRow, toCol);
+                return true;
+            }
+        }
+
+        if (!whiteTurn && piece.equals(BLACK_PAWN)) {
+
+            // One square forward
+            if (fromCol == toCol &&
+                    toRow == fromRow + 1 &&
+                    board[toRow][toCol].equals(".")) {
+
+                movePiece(board, fromRow, fromCol, toRow, toCol);
+                return true;
+            }
+
+            // Two squares forward (first move)
+            if (fromCol == toCol &&
+                    fromRow == 1 &&
+                    toRow == 3 &&
+                    board[2][toCol].equals(".") &&
+                    board[3][toCol].equals(".")) {
+
+                movePiece(board, fromRow, fromCol, toRow, toCol);
+                return true;
+            }
+        }
+
+
+        return false;
+    }
+
+    static void movePiece(String[][] board, int fr, int fc, int tr, int tc) {
+        board[tr][tc] = board[fr][fc];
+        board[fr][fc] = ".";
+    }
+
+    static boolean inBounds(int r, int c) {
+        return r >= 0 && r < 8 && c >= 0 && c < 8;
     }
 }
