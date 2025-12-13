@@ -4,7 +4,8 @@ public class Main {
 
     static Scanner in = new Scanner(System.in);
 
-    static final String EMPTY = " · ";
+    // 3-character wide empty square (matches chess piece width)
+    static final String EMPTY = " ＿ ";
 
     static final String[] UNICODE_BLACK = {
             " ♜ "," ♞ "," ♝ "," ♛ "," ♚ "," ♝ "," ♞ "," ♜ "
@@ -27,7 +28,7 @@ public class Main {
         while (true) {
             printBoard(board);
 
-            System.out.print(whiteTurn ? "White move (e4): " : "Black move (e5): ");
+            System.out.print(whiteTurn ? "White move : " : "Black move : ");
             String move = in.nextLine().trim().toLowerCase();
 
             if (move.equals("exit")) break;
@@ -73,30 +74,46 @@ public class Main {
         System.out.println("   a  b  c  d  e  f  g  h\n");
     }
 
+    // Normal chess pawn move: e4, d5, etc.
     static boolean processMove(String[][] board, String move, boolean whiteTurn) {
 
         if (move.length() != 2) return false;
 
-        int toCol = move.charAt(0) - 'a';
-        int toRow = 8 - (move.charAt(1) - '0');
+        int col = move.charAt(0) - 'a';
+        int row = 8 - (move.charAt(1) - '0');
 
-        if (!inBounds(toRow, toCol)) return false;
+        if (!inBounds(row, col)) return false;
+        if (!board[row][col].equals(EMPTY)) return false;
 
-        // Find pawn that can move there
         if (whiteTurn) {
-            int fromRow = toRow + 1;
-            if (fromRow < 8 && board[fromRow][toCol].equals(WHITE_PAWN)
-                    && board[toRow][toCol].equals(EMPTY)) {
-
-                movePiece(board, fromRow, toCol, toRow, toCol);
+            // One square forward
+            if (row + 1 < 8 && board[row + 1][col].equals(WHITE_PAWN)) {
+                movePiece(board, row + 1, col, row, col);
                 return true;
             }
-        } else {
-            int fromRow = toRow - 1;
-            if (fromRow >= 0 && board[fromRow][toCol].equals(BLACK_PAWN)
-                    && board[toRow][toCol].equals(EMPTY)) {
 
-                movePiece(board, fromRow, toCol, toRow, toCol);
+            // Two squares forward (first move)
+            if (row == 4 &&
+                    board[6][col].equals(WHITE_PAWN) &&
+                    board[5][col].equals(EMPTY)) {
+
+                movePiece(board, 6, col, row, col);
+                return true;
+            }
+
+        } else {
+            // One square forward
+            if (row - 1 >= 0 && board[row - 1][col].equals(BLACK_PAWN)) {
+                movePiece(board, row - 1, col, row, col);
+                return true;
+            }
+
+            // Two squares forward (first move)
+            if (row == 3 &&
+                    board[1][col].equals(BLACK_PAWN) &&
+                    board[2][col].equals(EMPTY)) {
+
+                movePiece(board, 1, col, row, col);
                 return true;
             }
         }
