@@ -6,32 +6,33 @@ public class Main {
 
     static final String EMPTY = " ＿ ";
 
-    // BLACK pieces (top of board)
-    static final String BLACK_PAWN = " ♟ ";
-    static final String BLACK_ROOK = " ♜ ";
-    static final String BLACK_KNIGHT = " ♞ ";
-    static final String BLACK_BISHOP = " ♝ ";
-    static final String BLACK_QUEEN = " ♛ ";
-    static final String BLACK_KING = " ♚ ";
+    // BLACK
+    static final String BP = " ♟ ";
+    static final String BR = " ♜ ";
+    static final String BN = " ♞ ";
+    static final String BB = " ♝ ";
+    static final String BQ = " ♛ ";
+    static final String BK = " ♚ ";
 
-    // WHITE pieces (bottom of board)
-    static final String WHITE_PAWN = " ♙ ";
-    static final String WHITE_ROOK = " ♖ ";
-    static final String WHITE_KNIGHT = " ♘ ";
-    static final String WHITE_BISHOP = " ♗ ";
-    static final String WHITE_QUEEN = " ♕ ";
-    static final String WHITE_KING = " ♔ ";
+    // WHITE
+    static final String WP = " ♙ ";
+    static final String WR = " ♖ ";
+    static final String WN = " ♘ ";
+    static final String WB = " ♗ ";
+    static final String WQ = " ♕ ";
+    static final String WK = " ♔ ";
 
     public static void main(String[] args) {
 
         String[][] board = new String[8][8];
-        initializeBoard(board);
+        setup(board);
 
         boolean whiteTurn = true;
 
         while (true) {
             printBoard(board);
-            System.out.print(whiteTurn ? "White move: " : "Black move: ");
+
+            System.out.print((whiteTurn ? "White" : "Black") + " move: ");
             String move = in.nextLine().trim();
 
             if (move.equalsIgnoreCase("exit")) break;
@@ -41,85 +42,80 @@ public class Main {
                 continue;
             }
 
+            if (isKingInCheck(board, !whiteTurn)) {
+                System.out.println("CHECK!");
+            }
+
             whiteTurn = !whiteTurn;
         }
     }
 
-    static void initializeBoard(String[][] board) {
+    // ================= SETUP =================
+    static void setup(String[][] b) {
+        String[] backW = {WR, WN, WB, WQ, WK, WB, WN, WR};
+        String[] backB = {BR, BN, BB, BQ, BK, BB, BN, BR};
 
-        String[] blackBack = {
-                BLACK_ROOK, BLACK_KNIGHT, BLACK_BISHOP, BLACK_QUEEN,
-                BLACK_KING, BLACK_BISHOP, BLACK_KNIGHT, BLACK_ROOK
-        };
-
-        String[] whiteBack = {
-                WHITE_ROOK, WHITE_KNIGHT, WHITE_BISHOP, WHITE_QUEEN,
-                WHITE_KING, WHITE_BISHOP, WHITE_KNIGHT, WHITE_ROOK
-        };
-
-        for (int c = 0; c < 8; c++) {
-            board[0][c] = blackBack[c];
-            board[1][c] = BLACK_PAWN;
-            board[6][c] = WHITE_PAWN;
-            board[7][c] = whiteBack[c];
+        for (int i = 0; i < 8; i++) {
+            b[0][i] = backB[i];
+            b[1][i] = BP;
+            b[6][i] = WP;
+            b[7][i] = backW[i];
         }
 
         for (int r = 2; r <= 5; r++)
             for (int c = 0; c < 8; c++)
-                board[r][c] = EMPTY;
+                b[r][c] = EMPTY;
     }
 
-    static void printBoard(String[][] board) {
+    // ================= PRINT =================
+    static void printBoard(String[][] b) {
         System.out.println();
         for (int r = 0; r < 8; r++) {
             System.out.print((8 - r) + " ");
             for (int c = 0; c < 8; c++)
-                System.out.print(board[r][c]);
+                System.out.print(b[r][c]);
             System.out.println();
         }
         System.out.println("   a  b  c  d  e  f  g  h\n");
     }
 
-    // Supports: e4, exd5, Nf3, Bc4, Rxe5
-    static boolean processMove(String[][] board, String move, boolean whiteTurn) {
+    // ================= MOVE PARSER =================
+    static boolean processMove(String[][] b, String move, boolean white) {
 
         boolean capture = move.contains("x");
         move = move.replace("x", "");
 
         char pieceChar = Character.isUpperCase(move.charAt(0)) ? move.charAt(0) : 'P';
-        int idx = pieceChar == 'P' ? 0 : 1;
+        int offset = pieceChar == 'P' ? 0 : 1;
 
-        String target = move.substring(idx);
-        int col = target.charAt(0) - 'a';
-        int row = 8 - (target.charAt(1) - '0');
+        int tc = move.charAt(offset) - 'a';
+        int tr = 8 - (move.charAt(offset + 1) - '0');
 
-        if (!inBounds(row, col)) return false;
+        if (!inBounds(tr, tc)) return false;
 
         return switch (pieceChar) {
-            case 'P' -> pawnMove(board, row, col, whiteTurn, capture);
-            case 'N' -> knightMove(board, row, col, whiteTurn);
-            case 'B' -> slidingMove(board, row, col, whiteTurn, true, false);
-            case 'R' -> slidingMove(board, row, col, whiteTurn, false, true);
+            case 'P' -> pawnMove(b, tr, tc, white, capture);
+            case 'N' -> knightMove(b, tr, tc, white);
+            case 'B' -> slidingMove(b, tr, tc, white, true, false);
+            case 'R' -> slidingMove(b, tr, tc, white, false, true);
+            case 'Q' -> slidingMove(b, tr, tc, white, true, true);
             default -> false;
         };
     }
 
-    // ================= PIECES =================
-
+    // ================= PAWN =================
     static boolean pawnMove(String[][] b, int tr, int tc, boolean white, boolean capture) {
 
         int dir = white ? -1 : 1;
-        String pawn = white ? WHITE_PAWN : BLACK_PAWN;
-        String enemyPawn = white ? BLACK_PAWN : WHITE_PAWN;
+        String pawn = white ? WP : BP;
 
         // Capture
         if (capture) {
             for (int dc : new int[]{-1, 1}) {
                 int fr = tr - dir, fc = tc + dc;
                 if (inBounds(fr, fc) && b[fr][fc].equals(pawn)
-                        && !b[tr][tc].equals(EMPTY)
-                        && !b[tr][tc].equals(pawn)) {
-                    movePiece(b, fr, fc, tr, tc);
+                        && !b[tr][tc].equals(EMPTY)) {
+                    move(b, fr, fc, tr, tc);
                     return true;
                 }
             }
@@ -129,67 +125,111 @@ public class Main {
         // One step
         int fr = tr - dir;
         if (inBounds(fr, tc) && b[fr][tc].equals(pawn) && b[tr][tc].equals(EMPTY)) {
-            movePiece(b, fr, tc, tr, tc);
+            move(b, fr, tc, tr, tc);
             return true;
         }
 
-        // Two step
-        int startRow = white ? 6 : 1;
-        if (tr == (white ? 4 : 3) && b[startRow][tc].equals(pawn)
-                && b[startRow + dir][tc].equals(EMPTY)) {
-            movePiece(b, startRow, tc, tr, tc);
+        // Two steps
+        int start = white ? 6 : 1;
+        if (fr == start + dir && b[start][tc].equals(pawn)
+                && b[start + dir][tc].equals(EMPTY)
+                && b[tr][tc].equals(EMPTY)) {
+            move(b, start, tc, tr, tc);
             return true;
         }
 
         return false;
     }
 
+    // ================= KNIGHT =================
     static boolean knightMove(String[][] b, int tr, int tc, boolean white) {
 
-        String knight = white ? WHITE_KNIGHT : BLACK_KNIGHT;
+        String knight = white ? WN : BN;
+        int[][] d = {{2,1},{2,-1},{-2,1},{-2,-1},{1,2},{1,-2},{-1,2},{-1,-2}};
 
-        int[][] jumps = {
-                {-2,-1},{-2,1},{-1,-2},{-1,2},
-                {1,-2},{1,2},{2,-1},{2,1}
-        };
-
-        for (int[] j : jumps) {
-            int fr = tr + j[0], fc = tc + j[1];
+        for (int[] m : d) {
+            int fr = tr + m[0], fc = tc + m[1];
             if (inBounds(fr, fc) && b[fr][fc].equals(knight)) {
-                movePiece(b, fr, fc, tr, tc);
+                move(b, fr, fc, tr, tc);
                 return true;
             }
         }
         return false;
     }
 
+    // ================= SLIDERS =================
     static boolean slidingMove(String[][] b, int tr, int tc, boolean white,
                                boolean diag, boolean straight) {
 
-        String bishop = white ? WHITE_BISHOP : BLACK_BISHOP;
-        String rook = white ? WHITE_ROOK : BLACK_ROOK;
+        String bishop = white ? WB : BB;
+        String rook = white ? WR : BR;
+        String queen = white ? WQ : BQ;
 
-        int[][] dirs = diag
-                ? new int[][]{{1,1},{1,-1},{-1,1},{-1,-1}}
-                : new int[][]{{1,0},{-1,0},{0,1},{0,-1}};
+        int[][] dirs = {
+                {1,0},{-1,0},{0,1},{0,-1},
+                {1,1},{1,-1},{-1,1},{-1,-1}
+        };
 
         for (int[] d : dirs) {
+            boolean isDiag = Math.abs(d[0]) == Math.abs(d[1]);
+            if ((isDiag && !diag) || (!isDiag && !straight)) continue;
+
             int r = tr + d[0], c = tc + d[1];
             while (inBounds(r, c) && b[r][c].equals(EMPTY)) {
-                r += d[0]; c += d[1];
+                r += d[0];
+                c += d[1];
             }
+
             if (inBounds(r, c) &&
-                    (b[r][c].equals(bishop) || b[r][c].equals(rook))) {
-                movePiece(b, r, c, tr, tc);
+                    (b[r][c].equals(bishop) || b[r][c].equals(rook) || b[r][c].equals(queen))) {
+                move(b, r, c, tr, tc);
                 return true;
             }
         }
+        return false;
+    }
+
+    // ================= CHECK =================
+    static boolean isKingInCheck(String[][] b, boolean whiteKing) {
+
+        String king = whiteKing ? WK : BK;
+        int kr = -1, kc = -1;
+
+        for (int r = 0; r < 8; r++)
+            for (int c = 0; c < 8; c++)
+                if (b[r][c].equals(king)) {
+                    kr = r; kc = c;
+                }
+
+        String enemyQueen = whiteKing ? BQ : WQ;
+        String enemyRook = whiteKing ? BR : WR;
+        String enemyBishop = whiteKing ? BB : WB;
+        String enemyKnight = whiteKing ? BN : WN;
+
+        int[][] knightD = {{2,1},{2,-1},{-2,1},{-2,-1},{1,2},{1,-2},{-1,2},{-1,-2}};
+        for (int[] d : knightD) {
+            int r = kr + d[0], c = kc + d[1];
+            if (inBounds(r,c) && b[r][c].equals(enemyKnight)) return true;
+        }
+
+        int[][] dirs = {{1,0},{-1,0},{0,1},{0,-1},{1,1},{1,-1},{-1,1},{-1,-1}};
+        for (int[] d : dirs) {
+            int r = kr + d[0], c = kc + d[1];
+            while (inBounds(r,c) && b[r][c].equals(EMPTY)) {
+                r += d[0]; c += d[1];
+            }
+            if (!inBounds(r,c)) continue;
+
+            if (b[r][c].equals(enemyQueen)) return true;
+            if ((d[0]==0||d[1]==0) && b[r][c].equals(enemyRook)) return true;
+            if (Math.abs(d[0])==1 && Math.abs(d[1])==1 && b[r][c].equals(enemyBishop)) return true;
+        }
+
         return false;
     }
 
     // ================= HELPERS =================
-
-    static void movePiece(String[][] b, int fr, int fc, int tr, int tc) {
+    static void move(String[][] b, int fr, int fc, int tr, int tc) {
         b[tr][tc] = b[fr][fc];
         b[fr][fc] = EMPTY;
     }
