@@ -4,19 +4,22 @@ public class Main {
 
     static Scanner in = new Scanner(System.in);
 
-    // 3-character wide empty square (matches chess piece width)
+    // 3-character wide cells for alignment
     static final String EMPTY = " ＿ ";
 
-    static final String[] UNICODE_BLACK = {
+    static final String[] UNICODE_WHITE = {
             " ♜ "," ♞ "," ♝ "," ♛ "," ♚ "," ♝ "," ♞ "," ♜ "
     };
 
-    static final String[] UNICODE_WHITE = {
+    static final String[] UNICODE_BLACK = {
             " ♖ "," ♘ "," ♗ "," ♕ "," ♔ "," ♗ "," ♘ "," ♖ "
     };
 
-    static final String BLACK_PAWN = " ♟ ";
-    static final String WHITE_PAWN = " ♙ ";
+    static final String WHITE_PAWN = " ♟ ";
+    static final String BLACK_PAWN = " ♙ ";
+
+    static final String BLACK_KNIGHT = " ♘ ";
+    static final String WHITE_KNIGHT = " ♞ ";
 
     public static void main(String[] args) {
 
@@ -28,10 +31,10 @@ public class Main {
         while (true) {
             printBoard(board);
 
-            System.out.print(whiteTurn ? "White move : " : "Black move : ");
-            String move = in.nextLine().trim().toLowerCase();
+            System.out.print(whiteTurn ? "White move: " : "Black move: ");
+            String move = in.nextLine().trim();
 
-            if (move.equals("exit")) break;
+            if (move.equalsIgnoreCase("exit")) break;
 
             if (!processMove(board, move, whiteTurn)) {
                 System.out.println("Invalid move. Try again.");
@@ -74,46 +77,133 @@ public class Main {
         System.out.println("   a  b  c  d  e  f  g  h\n");
     }
 
-    // Normal chess pawn move: e4, d5, etc.
+    // Handles pawn + knight moves with captures
     static boolean processMove(String[][] board, String move, boolean whiteTurn) {
 
-        if (move.length() != 2) return false;
+        move = move.trim();
 
-        int col = move.charAt(0) - 'a';
-        int row = 8 - (move.charAt(1) - '0');
+        // ---------- KNIGHT ----------
+        if (move.startsWith("N")) {
+            return processKnightMove(board, move, whiteTurn);
+        }
 
-        if (!inBounds(row, col)) return false;
-        if (!board[row][col].equals(EMPTY)) return false;
+        // ---------- PAWN ----------
+        return processPawnMove(board, move, whiteTurn);
+    }
+
+    static boolean processPawnMove(String[][] board, String move, boolean whiteTurn) {
+
+        boolean capture = move.contains("x");
+
+        int toCol, toRow;
+        int fromCol;
+
+        if (capture) {
+            fromCol = move.charAt(0) - 'a';
+            toCol = move.charAt(2) - 'a';
+            toRow = 8 - (move.charAt(3) - '0');
+        } else {
+            toCol = move.charAt(0) - 'a';
+            toRow = 8 - (move.charAt(1) - '0');
+            fromCol = toCol;
+        }
+
+        if (!inBounds(toRow, toCol)) return false;
 
         if (whiteTurn) {
-            // One square forward
-            if (row + 1 < 8 && board[row + 1][col].equals(WHITE_PAWN)) {
-                movePiece(board, row + 1, col, row, col);
+
+            // Capture
+            if (capture) {
+                int fromRow = toRow + 1;
+                if (fromRow < 8 &&
+                        board[fromRow][fromCol].equals(WHITE_PAWN) &&
+                        !board[toRow][toCol].equals(EMPTY)) {
+
+                    movePiece(board, fromRow, fromCol, toRow, toCol);
+                    return true;
+                }
+            }
+
+            // One step
+            if (toRow + 1 < 8 &&
+                    board[toRow + 1][toCol].equals(WHITE_PAWN) &&
+                    board[toRow][toCol].equals(EMPTY)) {
+
+                movePiece(board, toRow + 1, toCol, toRow, toCol);
                 return true;
             }
 
-            // Two squares forward (first move)
-            if (row == 4 &&
-                    board[6][col].equals(WHITE_PAWN) &&
-                    board[5][col].equals(EMPTY)) {
+            // Two step
+            if (toRow == 4 &&
+                    board[6][toCol].equals(WHITE_PAWN) &&
+                    board[5][toCol].equals(EMPTY)) {
 
-                movePiece(board, 6, col, row, col);
+                movePiece(board, 6, toCol, toRow, toCol);
                 return true;
             }
 
         } else {
-            // One square forward
-            if (row - 1 >= 0 && board[row - 1][col].equals(BLACK_PAWN)) {
-                movePiece(board, row - 1, col, row, col);
+
+            // Capture
+            if (capture) {
+                int fromRow = toRow - 1;
+                if (fromRow >= 0 &&
+                        board[fromRow][fromCol].equals(BLACK_PAWN) &&
+                        !board[toRow][toCol].equals(EMPTY)) {
+
+                    movePiece(board, fromRow, fromCol, toRow, toCol);
+                    return true;
+                }
+            }
+
+            // One step
+            if (toRow - 1 >= 0 &&
+                    board[toRow - 1][toCol].equals(BLACK_PAWN) &&
+                    board[toRow][toCol].equals(EMPTY)) {
+
+                movePiece(board, toRow - 1, toCol, toRow, toCol);
                 return true;
             }
 
-            // Two squares forward (first move)
-            if (row == 3 &&
-                    board[1][col].equals(BLACK_PAWN) &&
-                    board[2][col].equals(EMPTY)) {
+            // Two step
+            if (toRow == 3 &&
+                    board[1][toCol].equals(BLACK_PAWN) &&
+                    board[2][toCol].equals(EMPTY)) {
 
-                movePiece(board, 1, col, row, col);
+                movePiece(board, 1, toCol, toRow, toCol);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    static boolean processKnightMove(String[][] board, String move, boolean whiteTurn) {
+
+        boolean capture = move.contains("x");
+
+        int toCol = move.charAt(capture ? 2 : 1) - 'a';
+        int toRow = 8 - (move.charAt(capture ? 3 : 2) - '0');
+
+        if (!inBounds(toRow, toCol)) return false;
+
+        String knight = whiteTurn ? WHITE_KNIGHT : BLACK_KNIGHT;
+
+        int[][] offsets = {
+                {-2, -1}, {-2, 1}, {-1, -2}, {-1, 2},
+                {1, -2}, {1, 2}, {2, -1}, {2, 1}
+        };
+
+        for (int[] o : offsets) {
+            int fr = toRow + o[0];
+            int fc = toCol + o[1];
+
+            if (inBounds(fr, fc) && board[fr][fc].equals(knight)) {
+
+                if (capture && board[toRow][toCol].equals(EMPTY)) return false;
+                if (!capture && !board[toRow][toCol].equals(EMPTY)) return false;
+
+                movePiece(board, fr, fc, toRow, toCol);
                 return true;
             }
         }
