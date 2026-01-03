@@ -38,7 +38,7 @@ public class Main {
             if (move.equalsIgnoreCase("exit")) break;
 
             if (!processMove(board, move, whiteTurn)) {
-                System.out.println("Invalid move.");
+                System.out.println("Illegal move.");
                 continue;
             }
 
@@ -93,97 +93,79 @@ public class Main {
 
         if (!inBounds(tr, tc)) return false;
 
-        return switch (pieceChar) {
-            case 'P' -> pawnMove(b, tr, tc, white, capture);
-            case 'N' -> knightMove(b, tr, tc, white);
-            case 'B' -> slidingMove(b, tr, tc, white, true, false);
-            case 'R' -> slidingMove(b, tr, tc, white, false, true);
-            case 'Q' -> slidingMove(b, tr, tc, white, true, true);
-            default -> false;
-        };
+        return attemptMove(b, pieceChar, tr, tc, white, capture);
     }
 
-    // ================= PAWN =================
-    static boolean pawnMove(String[][] b, int tr, int tc, boolean white, boolean capture) {
+    // ================= SAFE MOVE =================
+    static boolean attemptMove(String[][] b, char piece, int tr, int tc, boolean white, boolean capture) {
 
-        int dir = white ? -1 : 1;
-        String pawn = white ? WP : BP;
+        for (int fr = 0; fr < 8; fr++) {
+            for (int fc = 0; fc < 8; fc++) {
 
-        // Capture
-        if (capture) {
-            for (int dc : new int[]{-1, 1}) {
-                int fr = tr - dir, fc = tc + dc;
-                if (inBounds(fr, fc) && b[fr][fc].equals(pawn)
-                        && !b[tr][tc].equals(EMPTY)) {
-                    move(b, fr, fc, tr, tc);
-                    return true;
-                }
-            }
-            return false;
-        }
+                String p = b[fr][fc];
+                if (!isCorrectPiece(p, piece, white)) continue;
 
-        // One step
-        int fr = tr - dir;
-        if (inBounds(fr, tc) && b[fr][tc].equals(pawn) && b[tr][tc].equals(EMPTY)) {
-            move(b, fr, tc, tr, tc);
-            return true;
-        }
+                if (!isLegalPieceMove(b, fr, fc, tr, tc, piece, white, capture))
+                    continue;
 
-        // Two steps
-        int start = white ? 6 : 1;
-        if (fr == start + dir && b[start][tc].equals(pawn)
-                && b[start + dir][tc].equals(EMPTY)
-                && b[tr][tc].equals(EMPTY)) {
-            move(b, start, tc, tr, tc);
-            return true;
-        }
+                // simulate
+                String tempFrom = b[fr][fc];
+                String tempTo = b[tr][tc];
+                b[tr][tc] = tempFrom;
+                b[fr][fc] = EMPTY;
 
-        return false;
-    }
+                boolean illegal = isKingInCheck(b, white);
 
-    // ================= KNIGHT =================
-    static boolean knightMove(String[][] b, int tr, int tc, boolean white) {
+                if (!illegal) return true;
 
-        String knight = white ? WN : BN;
-        int[][] d = {{2,1},{2,-1},{-2,1},{-2,-1},{1,2},{1,-2},{-1,2},{-1,-2}};
-
-        for (int[] m : d) {
-            int fr = tr + m[0], fc = tc + m[1];
-            if (inBounds(fr, fc) && b[fr][fc].equals(knight)) {
-                move(b, fr, fc, tr, tc);
-                return true;
+                // revert
+                b[fr][fc] = tempFrom;
+                b[tr][tc] = tempTo;
             }
         }
         return false;
     }
 
-    // ================= SLIDERS =================
-    static boolean slidingMove(String[][] b, int tr, int tc, boolean white,
-                               boolean diag, boolean straight) {
+    // ================= MOVE RULES =================
+    static boolean isLegalPieceMove(String[][] b, int fr, int fc, int tr, int tc,
+                                    char piece, boolean white, boolean capture) {
 
-        String bishop = white ? WB : BB;
-        String rook = white ? WR : BR;
-        String queen = white ? WQ : BQ;
+        int dr = tr - fr, dc = tc - fc;
 
-        int[][] dirs = {
-                {1,0},{-1,0},{0,1},{0,-1},
-                {1,1},{1,-1},{-1,1},{-1,-1}
-        };
+        if (!capture && !b[tr][tc].equals(EMPTY)) return false;
+        if (capture && b[tr][tc].equals(EMPTY)) return false;
 
-        for (int[] d : dirs) {
-            boolean isDiag = Math.abs(d[0]) == Math.abs(d[1]);
-            if ((isDiag && !diag) || (!isDiag && !straight)) continue;
+        switch (piece) {
 
-            int r = tr + d[0], c = tc + d[1];
-            while (inBounds(r, c) && b[r][c].equals(EMPTY)) {
-                r += d[0];
-                c += d[1];
+            case 'P' -> {
+                int dir = white ? -1 : 1;
+                if (!capture && dc == 0 && dr == dir) return true;
+                if (!capture && dc == 0 && dr == 2 * dir &&
+                        ((white && fr == 6) || (!white && fr == 1)) &&
+                        b[fr + dir][fc].equals(EMPTY)) return true;
+                if (capture && Math.abs(dc) == 1 && dr == dir) return true;
             }
 
-            if (inBounds(r, c) &&
-                    (b[r][c].equals(bishop) || b[r][c].equals(rook) || b[r][c].equals(queen))) {
-                move(b, r, c, tr, tc);
-                return true;
+            case 'N' -> {
+                return (Math.abs(dr) == 2 && Math.abs(dc) == 1) ||
+                        (Math.abs(dr) == 1 && Math.abs(dc) == 2);
+            }
+
+            case 'B' -> {
+                return Math.abs(dr) == Math.abs(dc) && clearPath(b, fr, fc, tr, tc);
+            }
+
+            case 'R' -> {
+                return (dr == 0 || dc == 0) && clearPath(b, fr, fc, tr, tc);
+            }
+
+            case 'Q' -> {
+                return (dr == 0 || dc == 0 || Math.abs(dr) == Math.abs(dc))
+                        && clearPath(b, fr, fc, tr, tc);
+            }
+
+            case 'K' -> {
+                return Math.abs(dr) <= 1 && Math.abs(dc) <= 1;
             }
         }
         return false;
@@ -198,40 +180,53 @@ public class Main {
         for (int r = 0; r < 8; r++)
             for (int c = 0; c < 8; c++)
                 if (b[r][c].equals(king)) {
-                    kr = r; kc = c;
+                    kr = r;
+                    kc = c;
                 }
 
-        String enemyQueen = whiteKing ? BQ : WQ;
-        String enemyRook = whiteKing ? BR : WR;
-        String enemyBishop = whiteKing ? BB : WB;
-        String enemyKnight = whiteKing ? BN : WN;
+        return isSquareAttacked(b, kr, kc, !whiteKing);
+    }
 
-        int[][] knightD = {{2,1},{2,-1},{-2,1},{-2,-1},{1,2},{1,-2},{-1,2},{-1,-2}};
-        for (int[] d : knightD) {
-            int r = kr + d[0], c = kc + d[1];
-            if (inBounds(r,c) && b[r][c].equals(enemyKnight)) return true;
-        }
+    static boolean isSquareAttacked(String[][] b, int tr, int tc, boolean byWhite) {
 
-        int[][] dirs = {{1,0},{-1,0},{0,1},{0,-1},{1,1},{1,-1},{-1,1},{-1,-1}};
-        for (int[] d : dirs) {
-            int r = kr + d[0], c = kc + d[1];
-            while (inBounds(r,c) && b[r][c].equals(EMPTY)) {
-                r += d[0]; c += d[1];
+        for (int r = 0; r < 8; r++)
+            for (int c = 0; c < 8; c++) {
+                if (isCorrectPiece(b[r][c], 'P', byWhite)
+                        && isLegalPieceMove(b, r, c, tr, tc, 'P', byWhite, true))
+                    return true;
+
+                for (char p : "NBRQK".toCharArray())
+                    if (isCorrectPiece(b[r][c], p, byWhite)
+                            && isLegalPieceMove(b, r, c, tr, tc, p, byWhite, true))
+                        return true;
             }
-            if (!inBounds(r,c)) continue;
-
-            if (b[r][c].equals(enemyQueen)) return true;
-            if ((d[0]==0||d[1]==0) && b[r][c].equals(enemyRook)) return true;
-            if (Math.abs(d[0])==1 && Math.abs(d[1])==1 && b[r][c].equals(enemyBishop)) return true;
-        }
-
         return false;
     }
 
     // ================= HELPERS =================
-    static void move(String[][] b, int fr, int fc, int tr, int tc) {
-        b[tr][tc] = b[fr][fc];
-        b[fr][fc] = EMPTY;
+    static boolean clearPath(String[][] b, int fr, int fc, int tr, int tc) {
+        int dr = Integer.compare(tr, fr);
+        int dc = Integer.compare(tc, fc);
+        fr += dr;
+        fc += dc;
+        while (fr != tr || fc != tc) {
+            if (!b[fr][fc].equals(EMPTY)) return false;
+            fr += dr;
+            fc += dc;
+        }
+        return true;
+    }
+
+    static boolean isCorrectPiece(String p, char piece, boolean white) {
+        return switch (piece) {
+            case 'P' -> white ? p.equals(WP) : p.equals(BP);
+            case 'N' -> white ? p.equals(WN) : p.equals(BN);
+            case 'B' -> white ? p.equals(WB) : p.equals(BB);
+            case 'R' -> white ? p.equals(WR) : p.equals(BR);
+            case 'Q' -> white ? p.equals(WQ) : p.equals(BQ);
+            case 'K' -> white ? p.equals(WK) : p.equals(BK);
+            default -> false;
+        };
     }
 
     static boolean inBounds(int r, int c) {
